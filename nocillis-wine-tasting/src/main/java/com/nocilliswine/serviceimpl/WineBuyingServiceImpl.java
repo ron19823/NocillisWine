@@ -70,8 +70,9 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 	// Following method will generate the output file
 	@Override
 	public File generateOutputFile(String fileName) throws Exception {
+		String tmpFilePath=tempFileLocation + fileName.replace(FILE_NAME_POSTSTRING, OUTPUT_FILE_NAME_POSTSTRING);
 		try (Writer writer = new BufferedWriter(
-				new FileWriter(new File(tempFileLocation + fileName.replace(".txt", "_OUTPUT.txt"))));) {
+				new FileWriter(new File(tmpFilePath)));) {
 			long totalRecords = wineBuyingListDao.count();
 			LOGGER.info("Total count of final wine buying list is : {}", totalRecords);
 			writer.write("Number of Wine bottles sold : " + totalRecords + "\n");
@@ -88,7 +89,7 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 				}
 			}
 			writer.flush();
-			return new File(tempFileLocation + fileName.replace(FILE_NAME_POSTSTRING, OUTPUT_FILE_NAME_POSTSTRING));
+			return new File(tmpFilePath);
 		} catch (Exception e) {
 			LOGGER.error("exception while generating output file", e);
 			throw e;
