@@ -2,8 +2,8 @@ com/nocilliswine/Application.class
 com/nocilliswine/exception/BadRequestException.class
 com/nocilliswine/model/WineBuyingList.class
 com/nocilliswine/service/WineBuyingService.class
-com/nocilliswine/exceptionhandler/RestExceptionHandler.class
 com/nocilliswine/dao/WineBuyingListDao.class
+com/nocilliswine/exceptionhandler/RestExceptionHandler.class
 com/nocilliswine/serviceimpl/WineBuyingServiceImpl.class
 com/nocilliswine/dto/ResponseDto.class
 com/nocilliswine/controller/Controller.class
