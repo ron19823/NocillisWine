@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,14 +43,13 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 	
 	volatile Set<String> wineSet= Collections.synchronizedSet(new HashSet<String>()); 
 	
-	
 	private ExecutorService getExecutor() {
 		return Executors.newFixedThreadPool(threadPoolSize, r -> {
 			return new Thread(r);
 		});
 	}
 
-	// Following method will read each record from file store it in db
+	// Following method will read each record from file store it in db using multi theading
 	@Override
 	public File readAndGetBuyingList(MultipartFile file) throws Exception {
 		ExecutorService executorService=getExecutor();
@@ -72,16 +70,7 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 								synchronized (personWineMap) {
 									if (personWineMap.containsKey(personId)) {
 										String wines[] = personWineMap.get(personId).split(",");
-										if (wines == null || wines.length < 3) {// checking
-																				// person
-																				// has
-																				// already
-																				// taken
-																				// the
-																				// 3
-																				// bottles
-																				// or
-																				// not
+										if (wines == null || wines.length < 3) {// checking person has already taken the 3 bottles or not
 											LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
 											personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
 										}
@@ -98,9 +87,7 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 			}
 			executorService.shutdown();
 			executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-			return generateOutputFile(file.getOriginalFilename());// generating
-																	// output
-																	// file
+			return generateOutputFile(file.getOriginalFilename());// generating output file
 		} catch (Exception e) {
 			LOGGER.error("Exception while processing file", e);
 			throw e;
@@ -134,25 +121,15 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 			BufferedReader br = new BufferedReader(new FileReader(tempFile));
 			String line;
 			while ((line = br.readLine()) != null) {// reading file line by line
-				String tmpLine = line;
 					try {
-						StringTokenizer token = new StringTokenizer(tmpLine);
+						StringTokenizer token = new StringTokenizer(line);
 						String personId = token.nextToken();
 						String wineId = token.nextToken();
 							if (wineSet.add(wineId)) {
 								LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
 									if (personWineMap.containsKey(personId)) {
 										String wines[] = personWineMap.get(personId).split(",");
-										if (wines == null || wines.length < 3) {// checking
-																				// person
-																				// has
-																				// already
-																				// taken
-																				// the
-																				// 3
-																				// bottles
-																				// or
-																				// not
+										if (wines == null || wines.length < 3) {// checking person has already taken the 3 bottles or not
 											LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
 											personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
 										}
@@ -161,13 +138,10 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 									}
 							}
 					} catch (Exception e) {
-						LOGGER.error("Exception while processing file line : {}", tmpLine, e);
+						LOGGER.error("Exception while processing file line : {}", line, e);
 					}
-
 			}
-			return generateOutputFile(file.getOriginalFilename());// generating
-																	// output
-																	// file
+			return generateOutputFile(file.getOriginalFilename());// generating output file
 		} catch (Exception e) {
 			LOGGER.error("Exception while processing file", e);
 			throw e;

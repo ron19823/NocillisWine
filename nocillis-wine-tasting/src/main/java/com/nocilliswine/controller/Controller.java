@@ -33,7 +33,8 @@ public class Controller {
 	WineBuyingService wineBuyingService;
 
 	@RequestMapping(value = "/generateBuyingList", method = RequestMethod.POST)
-	public ResponseEntity<InputStreamResource> generateBuyingList(@RequestBody MultipartFile file, @RequestParam(name="useMultiThreading", required=false, defaultValue="0")int multiThreading) throws Exception {
+	public ResponseEntity<InputStreamResource> generateBuyingList(@RequestBody MultipartFile file,
+			@RequestParam(name="useMultiThreading", required=false, defaultValue="0")int multiThreading) throws Exception {
 		if (file == null) {
 			LOGGER.info("received null file for processing");
 			throw new BadRequestException("no file sent for processing");

@@ -19,7 +19,7 @@ CREATE TABLE `wine_buying_list` (
 
 Api details :- 
 
-	url:- POST - http://{server-ip}:{port}/wineTasting/generateBuyingList
+	url:- POST - http://{server-ip}:{port}/wineTasting/generateBuyingList?useMultiThreading={value > zero for multi threaded approach}
 
 	body:- file
 	
