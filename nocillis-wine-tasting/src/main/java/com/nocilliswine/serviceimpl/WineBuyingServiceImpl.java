@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +23,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.nocilliswine.dao.WineBuyingListDao;
 import com.nocilliswine.service.WineBuyingService;
 
 @Service
@@ -38,14 +36,11 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 	@Value("${thread.pool.size}")
 	int threadPoolSize;
 
-	@Autowired
-	WineBuyingListDao wineBuyingListDao;
-	
 	final static String FILE_NAME_POSTSTRING = ".txt";
 
 	final static String OUTPUT_FILE_NAME_POSTSTRING = "_OUTPUT.txt";
 	
-	volatile Map<String, String> personWineMap = new ConcurrentHashMap<>();
+	volatile Map<String, String> personWineMap = new HashMap<>();
 	
 	volatile Set<String> wineSet= Collections.synchronizedSet(new HashSet<String>()); 
 	
@@ -72,31 +67,29 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 						StringTokenizer token = new StringTokenizer(tmpLine);
 						String personId = token.nextToken();
 						String wineId = token.nextToken();
-						if (!wineSet.contains(wineId)) {
-							wineSet.add(wineId);
-							LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
-							synchronized (personWineMap) {
-								if (personWineMap.containsKey(personId)) {
-									String wines[] = personWineMap.get(personId).split(",");
-									if (wines == null || wines.length < 3) {// checking
-																			// person
-																			// has
-																			// already
-																			// taken
-																			// the
-																			// 3
-																			// bottles
-																			// or
-																			// not
-										LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
-										personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
+							if (wineSet.add(wineId)) {
+								LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
+								synchronized (personWineMap) {
+									if (personWineMap.containsKey(personId)) {
+										String wines[] = personWineMap.get(personId).split(",");
+										if (wines == null || wines.length < 3) {// checking
+																				// person
+																				// has
+																				// already
+																				// taken
+																				// the
+																				// 3
+																				// bottles
+																				// or
+																				// not
+											LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
+											personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
+										}
+									} else {
+										personWineMap.put(personId, wineId);
 									}
-
-								} else {
-									personWineMap.put(personId, wineId);
 								}
 							}
-						}
 					} catch (Exception e) {
 						LOGGER.error("Exception while processing file line : {}", tmpLine, e);
 					}
@@ -131,7 +124,54 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 			LOGGER.error("exception while generating output file", e);
 			throw e;
 		}
-
 	}
 	
+	@Override
+	public File readAndGetBuyingListWithoutThreads(MultipartFile file) throws Exception {
+		File tempFile = new File(tempFileLocation + file.getOriginalFilename());
+		try {
+			file.transferTo(tempFile);
+			BufferedReader br = new BufferedReader(new FileReader(tempFile));
+			String line;
+			while ((line = br.readLine()) != null) {// reading file line by line
+				String tmpLine = line;
+					try {
+						StringTokenizer token = new StringTokenizer(tmpLine);
+						String personId = token.nextToken();
+						String wineId = token.nextToken();
+							if (wineSet.add(wineId)) {
+								LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
+									if (personWineMap.containsKey(personId)) {
+										String wines[] = personWineMap.get(personId).split(",");
+										if (wines == null || wines.length < 3) {// checking
+																				// person
+																				// has
+																				// already
+																				// taken
+																				// the
+																				// 3
+																				// bottles
+																				// or
+																				// not
+											LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
+											personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
+										}
+									} else {
+										personWineMap.put(personId, wineId);
+									}
+							}
+					} catch (Exception e) {
+						LOGGER.error("Exception while processing file line : {}", tmpLine, e);
+					}
+
+			}
+			return generateOutputFile(file.getOriginalFilename());// generating
+																	// output
+																	// file
+		} catch (Exception e) {
+			LOGGER.error("Exception while processing file", e);
+			throw e;
+		}
+	}
+
 }

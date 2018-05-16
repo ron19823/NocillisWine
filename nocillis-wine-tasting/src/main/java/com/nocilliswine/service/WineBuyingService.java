@@ -14,4 +14,6 @@ public interface WineBuyingService {
 	File readAndGetBuyingList(MultipartFile file) throws Exception;
 
 	File generateOutputFile(String fileName) throws Exception;
+
+	File readAndGetBuyingListWithoutThreads(MultipartFile file) throws Exception;
 }
