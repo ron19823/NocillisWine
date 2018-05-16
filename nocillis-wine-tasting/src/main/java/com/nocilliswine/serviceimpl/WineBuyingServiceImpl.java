@@ -6,7 +6,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.Writer;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nocilliswine.dao.WineBuyingListDao;
@@ -34,10 +43,20 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 
 	@Autowired
 	WineBuyingListDao wineBuyingListDao;
+	
+	volatile Map<String, String> personWineMap = new HashMap<>();
+	
+	volatile Set<String> wineSet= new HashSet<>(); 
 
 	final static String FILE_NAME_POSTSTRING = ".txt";
 
 	final static String OUTPUT_FILE_NAME_POSTSTRING = "_OUTPUT.txt";
+	
+	private ExecutorService getExecutor() {
+		return Executors.newFixedThreadPool(1, (r) -> {
+			return new Thread(r);
+		});
+	}
 
 	// Following method will read each record from file store it in db
 	@Override
@@ -48,19 +67,35 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 			BufferedReader br = new BufferedReader(new FileReader(tempFile));
 			String line;
 			while ((line = br.readLine()) != null) {// reading file line by line
-				try {
-					StringTokenizer token = new StringTokenizer(line);
-					String personId = token.nextToken();
-					String wineId = token.nextToken();
-					if (wineBuyingListDao.countByPersonId(personId) < 3) {// checking person has already taken the 3 bottles or not
-						LOGGER.info("Storing person id {} and wine id {} into db", personId, wineId);
-						wineBuyingListDao.save(new WineBuyingList(wineId, personId));
+				String tmpLine = line;
+				getExecutor().execute(() -> {
+					try {
+						StringTokenizer token = new StringTokenizer(tmpLine);
+						String personId = token.nextToken();
+						String wineId = token.nextToken();
+						if (wineSet.contains(wineId)) {
+							return;
+						}
+						wineSet.add(wineId);
+						LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
+						if (personWineMap.containsKey(personId)) {
+							if(StringUtils.split(personWineMap.get(personId),",").length<3){// checking person has already taken the 3 bottles or not
+								LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
+								personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
+							}
+						} else {
+							personWineMap.put(personId, wineId);
+						}
+
+					} catch (Exception e) {
+						LOGGER.error("Exception while processing file line : {}", tmpLine, e);
 					}
-				} catch (Exception e) {
-					LOGGER.error("Exception while processing file line : {}", line, e);
-				}
+				});
+
 			}
-			return generateOutputFile(file.getOriginalFilename());// generating output file
+			return generateOutputFile(file.getOriginalFilename());// generating
+																	// output
+																	// file
 		} catch (Exception e) {
 			LOGGER.error("Exception while processing file", e);
 			throw e;
@@ -70,23 +105,13 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 	// Following method will generate the output file
 	@Override
 	public File generateOutputFile(String fileName) throws Exception {
-		String tmpFilePath=tempFileLocation + fileName.replace(FILE_NAME_POSTSTRING, OUTPUT_FILE_NAME_POSTSTRING);
-		try (Writer writer = new BufferedWriter(
-				new FileWriter(new File(tmpFilePath)));) {
-			long totalRecords = wineBuyingListDao.count();
+		String tmpFilePath = tempFileLocation + fileName.replace(FILE_NAME_POSTSTRING, OUTPUT_FILE_NAME_POSTSTRING);
+		try (Writer writer = new BufferedWriter(new FileWriter(new File(tmpFilePath)));) {
+			long totalRecords = personWineMap.size();
 			LOGGER.info("Total count of final wine buying list is : {}", totalRecords);
 			writer.write("Number of Wine bottles sold : " + totalRecords + "\n");
-			long loopCount = totalRecords / pageSize;
-			if (totalRecords % pageSize != 0) {// checking if the total recods count gives a remainder 
-				loopCount++;//if devided by page size if yes then remaining pages need to be considered
-			}
-			LOGGER.info("Total loop count for writing page is : {}", loopCount);
-			for (int i = 0; i < loopCount; i++) {
-				Page<WineBuyingList> wineBuyingLists = wineBuyingListDao.findAll(new PageRequest(i, pageSize));// getting paginated records
-				LOGGER.info("values for page number :{} are : {}", wineBuyingLists);
-				for (WineBuyingList content : wineBuyingLists) {
-					writer.write(content.getPersonId() + "\t" + content.getWineId() + "\n");//writing to file
-				}
+			for (Map.Entry<String, String> entry : personWineMap.entrySet()) {
+				writer.write(entry.getKey() + "\t" + entry.getValue() + "\n");// writing to file
 			}
 			writer.flush();
 			return new File(tmpFilePath);
@@ -96,5 +121,5 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 		}
 
 	}
-
+	
 }
