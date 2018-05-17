@@ -65,12 +65,12 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 						StringTokenizer token = new StringTokenizer(tmpLine);
 						String personId = token.nextToken();
 						String wineId = token.nextToken();
+						synchronized (personWineMap) {
 							if (wineSet.add(wineId)) {
 								LOGGER.info("Storing person id {} and wine id {} into map", personId, wineId);
-								synchronized (personWineMap) {
-									if (personWineMap.containsKey(personId)) {
-										String wines[] = personWineMap.get(personId).split(",");
-										if (wines == null || wines.length < 3) {// checking person has already taken the 3 bottles or not
+								if (personWineMap.containsKey(personId)) {
+									String wines[] = personWineMap.get(personId).split(",");
+									if (wines == null || wines.length < 3) {// checking person has already taken the 3 bottles or not
 											LOGGER.info("Adding person id :{} with value : {}", personId, wineId);
 											personWineMap.put(personId, personWineMap.get(personId) + "," + wineId);
 										}
