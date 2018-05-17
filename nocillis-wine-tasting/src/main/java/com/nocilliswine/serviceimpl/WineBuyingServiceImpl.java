@@ -103,7 +103,15 @@ public class WineBuyingServiceImpl implements WineBuyingService {
 			LOGGER.info("Total count of final wine buying list is : {}", totalRecords);
 			writer.write("Number of Wine bottles sold : " + totalRecords + "\n");
 			for (Map.Entry<String, String> entry : personWineMap.entrySet()) {
+				String wines[] = entry.getValue().split(",");
+				if(wines==null){
 				writer.write(entry.getKey() + "\t" + entry.getValue() + "\n");// writing to file
+				}
+				else{
+					for(String wineId:wines){
+						writer.write(entry.getKey() + "\t" + wineId + "\n");// writing to file
+					}
+				}
 			}
 			writer.flush();
 			return new File(tmpFilePath);
